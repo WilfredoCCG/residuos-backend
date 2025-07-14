@@ -8,7 +8,12 @@ from ultralytics import YOLO
 
 app = FastAPI()
 
-# Cargar tu modelo YOLOv8 (reemplaza por la ruta si lo nombras diferente)
+# Endpoint raíz para comprobar que el backend está corriendo
+@app.get("/")
+async def root():
+    return {"message": "API de detección de residuos funcionando correctamente"}
+
+# Cargar tu modelo YOLOv8
 model = YOLO("best.pt")
 
 class ImageData(BaseModel):
