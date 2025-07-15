@@ -9,45 +9,34 @@ from ultralytics import YOLO
 
 app = FastAPI()
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Para mayor seguridad, puedes reemplazar por ["http://localhost:8100"]
+    allow_origins=["*"],  # o ["http://localhost:8100"] si lo prefieres
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Endpoint raíz para verificar funcionamiento
-@app.get("/")
-async def root():
-    return {"message": "API de detección de residuos funcionando correctamente"}
-
-# Cargar el modelo YOLOv8
 model = YOLO("best.pt")
 
-# Modelo de entrada
 class ImageData(BaseModel):
     image: str  # Imagen en base64
 
 @app.post("/detect")
 async def detect_image(data: ImageData):
     try:
-        # Eliminar encabezado base64 si existe
-        if "," in data.image:
-            base64_data = data.image.split(",")[1]
-        else:
-            base64_data = data.image
-
-        # Decodificar y convertir la imagen
-        image_bytes = base64.b64decode(base64_data)
+        # Decodificar imagen base64
+        image_bytes = base64.b64decode(data.image.split(",")[-1])
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         image_np = np.array(image)
 
-        # Ejecutar el modelo YOLO
+        # Detección
         results = model(image_np)[0]
 
         detections = []
+        annotated_image = results.plot()  # Dibujar cajas y etiquetas
+        annotated_pil = Image.fromarray(annotated_image)
+
         for box in results.boxes:
             label = model.names[int(box.cls)]
             conf = float(box.conf)
@@ -58,7 +47,15 @@ async def detect_image(data: ImageData):
                 "bbox": bbox
             })
 
-        return {"detections": detections}
+        # Codificar la imagen con cajas en base64
+        buffered = io.BytesIO()
+        annotated_pil.save(buffered, format="JPEG")
+        annotated_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+        return {
+            "detections": detections,
+            "image": f"data:image/jpeg;base64,{annotated_base64}"
+        }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en detección: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
