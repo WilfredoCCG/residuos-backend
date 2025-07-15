@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware  # 👈 agrega esta línea
 from pydantic import BaseModel
 import base64
 import io
@@ -7,6 +8,15 @@ import numpy as np
 from ultralytics import YOLO
 
 app = FastAPI()
+
+# 👇 Agrega esto justo después de crear la app
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # O usa ["http://localhost:8100"] para mayor seguridad
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Endpoint raíz para comprobar que el backend está corriendo
 @app.get("/")
